@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "name": "Portfólio Vinícius",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "files.encoding": "utf8",
+    "liveServer.settings.port": 5500,
+    "liveServer.settings.root": "/"
+  },
+  "extensions": {
+    "recommendations": [
+      "ritwickdey.LiveServer"
+    ]
+  }
+}
