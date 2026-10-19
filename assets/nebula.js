@@ -3,11 +3,14 @@
 
   // Edit these values to customize the galaxy. Everything is drawn locally.
   const CONFIG = {
-    colors: ['#c9789d', '#9b7acb', '#e5ae86', '#eed4ac', '#6ba6aa'],
-    fog: 112,
-    dust: 540,
-    stars: 110,
-    pixelRatio: 1.4
+    colors: ['#c56d9e', '#8860c2', '#eca474', '#f6d6a4', '#65abb4'],
+    fog: 128,
+    dust: 720,
+    stars: 270,
+    textureSize: 512,
+    pixelRatio: 2,
+    maxDimension: 3840,
+    maxPixels: 3840 * 2160
   };
 
   function randomSource(seed) {
@@ -20,44 +23,48 @@
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     const random = randomSource(2706);
+    const texture = document.createElement('canvas');
+    texture.width = texture.height = CONFIG.textureSize;
+    const paint = texture.getContext('2d');
+    const size=CONFIG.textureSize;
+    const grid=Float32Array.from({length:4096},random);
+    function noise(x,y) {
+      const ix=Math.floor(x),iy=Math.floor(y);
+      let u=x-ix,v=y-iy;u=u*u*(3-2*u);v=v*v*(3-2*v);
+      const a=grid[(ix&63)+(iy&63)*64],b=grid[((ix+1)&63)+(iy&63)*64];
+      const c=grid[(ix&63)+((iy+1)&63)*64],d=grid[((ix+1)&63)+((iy+1)&63)*64];
+      return (a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v;
+    }
+    function cloudNoise(x,y) {
+      let value=0,weight=.56;
+      for(let i=0;i<5;i++){value+=noise(x,y)*weight;x=x*2.07+7.1;y=y*2.03-3.7;weight*=.47;}
+      return value;
+    }
+    const pixels=paint.createImageData(size,size);
+    for (let y=0;y<size;y++) for(let x=0;x<size;x++) {
+      const u=(x-size/2)/(size/2),v=(y-size/2)/(size/2);
+      const tx=x*192/size,ty=y*192/size;
+      const edge=Math.max(0,1-u*u-v*v);
+      const warp=noise(tx*.035+14,ty*.035+9)*2;
+      const density=Math.max(0,cloudNoise(tx*.055+warp,ty*.055-warp)-.20);
+      const alpha=Math.pow(density,1.6)*Math.pow(edge,1.4)*.9;
+      const index=(y*size+x)*4;
+      pixels.data[index]=255;pixels.data[index+1]=255;pixels.data[index+2]=255;pixels.data[index+3]=Math.round(alpha*255);
+    }
+    paint.putImageData(pixels,0,0);
     const sprites = CONFIG.colors.map(color => {
-      const sprite = document.createElement('canvas');
-      sprite.width = sprite.height = 192;
-      const paint = sprite.getContext('2d');
-      const grid=Float32Array.from({length:4096},random);
-      function noise(x,y) {
-        const ix=Math.floor(x),iy=Math.floor(y);
-        let u=x-ix,v=y-iy;u=u*u*(3-2*u);v=v*v*(3-2*v);
-        const a=grid[(ix&63)+(iy&63)*64],b=grid[((ix+1)&63)+(iy&63)*64];
-        const c=grid[(ix&63)+((iy+1)&63)*64],d=grid[((ix+1)&63)+((iy+1)&63)*64];
-        return (a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v;
-      }
-      function cloudNoise(x,y) {
-        let value=0,weight=.56;
-        for(let i=0;i<4;i++){value+=noise(x,y)*weight;x=x*2.07+7.1;y=y*2.03-3.7;weight*=.47;}
-        return value;
-      }
-      const pixels=paint.createImageData(192,192);
-      const rgb=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
-      for (let y=0;y<192;y++) for(let x=0;x<192;x++) {
-        const u=(x-96)/96,v=(y-96)/96;
-        const edge=Math.max(0,1-u*u-v*v);
-        const warp=noise(x*.035+14,y*.035+9)*2;
-        const density=Math.max(0,cloudNoise(x*.055+warp,y*.055-warp)-.19);
-        const alpha=Math.pow(density,1.4)*Math.pow(edge,1.3)*.95;
-        const index=(y*192+x)*4;
-        pixels.data[index]=rgb[0];pixels.data[index+1]=rgb[1];pixels.data[index+2]=rgb[2];pixels.data[index+3]=Math.round(alpha*255);
-      }
-      paint.putImageData(pixels,0,0);
+      const sprite=document.createElement('canvas');sprite.width=sprite.height=size;
+      const tint=sprite.getContext('2d');tint.drawImage(texture,0,0);
+      tint.globalCompositeOperation='source-in';tint.fillStyle=color;tint.fillRect(0,0,size,size);
       return sprite;
     });
     function cloudPoint(index) {
-      const radius = Math.pow(random(),.64);
-      return {radius,angle:radius*5.5+(index%3)*Math.PI*2/3+(random()-.5)*.9,z:(random()-.5)*.55,phase:random()*Math.PI*2};
+      const radius = Math.pow(random(),.58);
+      return {radius,angle:radius*5.8+(index%3)*Math.PI*2/3+(random()-.5)*.7,z:(random()-.5)*.55,phase:random()*Math.PI*2};
     }
-    const fog = Array.from({length:CONFIG.fog},(_,i) => ({...cloudPoint(i),size:.55+random()*.65,opacity:.4+random()*.6,color:i%17===0?4:i%4}));
+    const fog = Array.from({length:CONFIG.fog},(_,i) => ({...cloudPoint(i),size:.4+random()*.63,opacity:.4+random()*.6,color:i%17===0?4:i%4}));
     const dust = Array.from({length:CONFIG.dust},(_,i) => ({...cloudPoint(i),size:.2+random()*.85,color:i%4}));
-    const stars = Array.from({length:CONFIG.stars},() => ({x:(random()-.5)*2.65,y:(random()-.5)*2.2,z:random(),size:.4+random()*.9,phase:random()*7}));
+    const stars = Array.from({length:CONFIG.stars},() => ({x:random(),y:random(),z:random(),size:.35+random()*.9,phase:random()*7}));
     const sparks = Array.from({length:38},() => ({angle:random()*Math.PI*2,speed:.35+random()*.7,size:.6+random()*1.2}));
     let width=1,height=1,ratio=1;
     let lastPointer={x:0,y:0},lastTime=0;
@@ -65,7 +72,8 @@
     function resize() {
       const rect=canvas.getBoundingClientRect();
       width=Math.max(1,rect.width);height=Math.max(1,rect.height);
-      ratio=Math.min(window.devicePixelRatio||1,CONFIG.pixelRatio);
+      // Match the display density, up to a 4K surface, without forcing 4K per frame on small screens.
+      ratio=Math.min(window.devicePixelRatio||1,CONFIG.pixelRatio,CONFIG.maxDimension/Math.max(width,height),Math.sqrt(CONFIG.maxPixels/(width*height)));
       const w=Math.round(width*ratio),h=Math.round(height*ratio);
       if (canvas.width!==w || canvas.height!==h) { canvas.width=w;canvas.height=h; }
       ctx.setTransform(ratio,0,0,ratio,0,0);
@@ -76,22 +84,23 @@
       const time=state.time||0,px=state.pointerX||0,py=state.pointerY||0;
       const energy=Math.max(0,Math.min(1.4,state.energy||0));
       const pulse=state.pulse??1,power=state.power||0;
-      const radius=Math.min(width*.39,height*.4);
-      const cx=width*.5,cy=height*.48;
-      const yaw=px*.32,tilt=py*.18,rotation=-.28+(state.rotation||0)*.22;
-      const pointer={x:px*radius*1.1,y:py*radius*.95};
+      const radius=(width<800?Math.min(width*.8,height*.65):Math.min(width*.53,height*.82))*(1+Math.sin(time*.65)*.035);
+      const cx=width*(width<800?.77:.69),cy=height*.43;
+      const yaw=px*.32+Math.sin(time*.33)*.18,tilt=py*.18+Math.sin(time*.27)*.15,rotation=-.28+(state.rotation||0)*.22+Math.sin(time*.15)*.14;
+      const pointer={x:(px+1)*width*.5-cx,y:(py+1)*height*.5-cy};
       function project(x,y,z) {
         const xx=x*Math.cos(yaw)+z*Math.sin(yaw),zz=-x*Math.sin(yaw)+z*Math.cos(yaw);
         const yy=y*Math.cos(tilt)-zz*Math.sin(tilt);
         return {x:(xx*Math.cos(rotation)-yy*Math.sin(rotation))*radius,y:(xx*Math.sin(rotation)+yy*Math.cos(rotation))*radius,z:zz};
       }
-      function orbit(p) {
-        const angle=p.angle+time*.045+Math.sin(time*.16+p.phase)*.055;
-        let x=Math.cos(angle)*p.radius,y=Math.sin(angle)*p.radius*.78;
-        const dx=x-px*.85,dy=y-py*.8,field=Math.exp(-(dx*dx+dy*dy)*3.5)*Math.min(energy,.65);
+      function orbit(p,speed=1) {
+        const angle=p.angle+time*.12*speed+Math.sin(time*.42+p.phase)*.14;
+        const drift=1+Math.sin(time*.38+p.phase)*.045;
+        let x=Math.cos(angle)*p.radius*drift,y=Math.sin(angle)*p.radius*.74*drift;
+        const dx=x-pointer.x/radius,dy=y-pointer.y/radius,field=Math.exp(-(dx*dx+dy*dy)*3.5)*Math.min(energy,.65);
         x+=(-dy*.2+px*.12)*field;y+=(dx*.2+py*.12)*field;
         const expansion=1+Math.sin(pulse*Math.PI)*power*.13;
-        return project(x*expansion,y*expansion,p.z+Math.sin(time*.2+p.phase)*.04);
+        return project(x*expansion,y*expansion,p.z+Math.sin(time*.48+p.phase)*.09);
       }
       function glow(x,y,r,color,alpha) {
         const g=ctx.createRadialGradient(x,y,0,x,y,r);
@@ -99,32 +108,25 @@
         ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);
       }
       ctx.clearRect(0,0,width,height);ctx.save();ctx.translate(cx,cy);ctx.globalCompositeOperation='screen';
-      // Widely spaced stars give the cloud depth without a rectangular backdrop.
-      for (const star of stars) {
-        const p=project(star.x+px*star.z*.045,star.y+py*star.z*.045,star.z*.2);
-        const fade=Math.max(0,1-Math.hypot(star.x/1.5,star.y/1.3));
-        const twinkle=.65+Math.sin(time*.7+star.phase)*.2;
-        ctx.globalAlpha=fade*twinkle;ctx.fillStyle='#ede2d5';ctx.beginPath();ctx.arc(p.x,p.y,star.size,0,Math.PI*2);ctx.fill();
-      }
       ctx.globalAlpha=1;
-      glow(-radius*.08,radius*.05,radius*.82,'#8e5eaf',.12);
+      glow(-radius*.08,radius*.05,radius*.95,'#8e5eaf',.045);
       // Layered soft sprites form the wisps; no external bitmap or dependency.
       for (const cloud of fog) {
         const p=orbit(cloud),distance=Math.hypot((p.x-pointer.x)/radius,(p.y-pointer.y)/radius);
         const light=1+Math.exp(-distance*distance*3)*energy*.6;
-        const size=cloud.size*radius*(1+Math.sin(time*.24+cloud.phase)*.06);
-        ctx.globalAlpha=Math.min(1,cloud.opacity*light*(.68+Math.sin(time*.3+cloud.phase)*.045));
-        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(cloud.angle-time*.018);
-        ctx.scale(1.15,.8+cloud.radius*.2);ctx.drawImage(sprites[cloud.color],-size/2,-size/2,size,size);ctx.restore();
+        const size=cloud.size*radius*(1+Math.sin(time*.46+cloud.phase)*.13);
+        ctx.globalAlpha=Math.min(1,cloud.opacity*light*(.27+Math.sin(time*.5+cloud.phase)*.035));
+        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(cloud.angle+time*(cloud.color%2 ? .038 : -.032));
+        ctx.scale(1.25+Math.sin(time*.38+cloud.phase)*.12,.66+cloud.radius*.2);ctx.drawImage(sprites[cloud.color],-size/2,-size/2,size,size);ctx.restore();
       }
       ctx.globalAlpha=1;
-      glow(0,0,radius*.38,'#e5ae86',.22+energy*.09);
-      glow(pointer.x*.75,pointer.y*.75,radius*.5,'#eecff2',energy*.2);
+      glow(Math.sin(time*.42)*radius*.18,Math.cos(time*.31)*radius*.12,radius*.4,'#e5ae86',.05+energy*.025);
+      glow(Math.sin(time*.53)*radius*.4+pointer.x*.65,Math.cos(time*.47)*radius*.25+pointer.y*.65,radius*.44,'#eecff2',.025+energy*.055);
       // Dust bends around the pointer, keeping a fine sparkling structure.
       for (const particle of dust) {
-        const p=orbit(particle),distance=Math.hypot((p.x-pointer.x)/radius,(p.y-pointer.y)/radius);
+        const p=orbit(particle,1.55),distance=Math.hypot((p.x-pointer.x)/radius,(p.y-pointer.y)/radius);
         const light=Math.exp(-distance*distance*5)*energy;
-        ctx.globalAlpha=Math.min(1,.12+particle.radius*.34+light*.45);
+        ctx.globalAlpha=Math.min(1,.06+particle.radius*.15+light*.16);
         ctx.fillStyle=CONFIG.colors[particle.color];ctx.beginPath();ctx.arc(p.x,p.y,particle.size*(1+light*.7),0,Math.PI*2);ctx.fill();
       }
       // A short luminous wake reacts to movement instead of following forever.
@@ -137,6 +139,14 @@
         glow(trail[i].x,trail[i].y,12+age*20,'#e8baed',.09);
       }
       ctx.globalAlpha=1;
+      // A quiet shooting star crosses the cloud periodically, even without input.
+      const comet=(time+1.3)%7.2;
+      if(comet<1.4){
+        const t=comet/1.4,head=project(-1.15+t*2.3,-.7+t*.85,.25),tail=project(-1.4+t*2.3,-.79+t*.85,.25);
+        const opacity=Math.sin(t*Math.PI)*.65;
+        const streak=ctx.createLinearGradient(tail.x,tail.y,head.x,head.y);streak.addColorStop(0,'rgba(241,213,255,0)');streak.addColorStop(1,rgba('#f6d6a4',opacity));
+        ctx.strokeStyle=streak;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(tail.x,tail.y);ctx.lineTo(head.x,head.y);ctx.stroke();glow(head.x,head.y,7,'#f6d6a4',opacity*.3);
+      }
       if (pulse<1 && !state.paused) {
         const opacity=Math.sin(pulse*Math.PI)*power;
         glow(pointer.x,pointer.y,radius*(.12+pulse*.5),'#ffe1b5',opacity*.22);
@@ -149,10 +159,25 @@
       }
       // Feather the complete cloud into the page, including on narrow screens.
       ctx.globalAlpha=1;ctx.globalCompositeOperation='destination-in';
-      ctx.scale(width*.48,height*.45);
+      ctx.scale(width*.85,height*.9);
       const edge=ctx.createRadialGradient(0,0,.52,0,0,1);
       edge.addColorStop(0,'rgba(0,0,0,1)');edge.addColorStop(.72,'rgba(0,0,0,.85)');edge.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=edge;ctx.fillRect(-2,-2,4,4);
+      ctx.restore();
+      // Protect the text area while keeping the fog continuous across the hero.
+      ctx.save();ctx.globalCompositeOperation='destination-in';
+      const protection=ctx.createLinearGradient(0,0,width,0);
+      protection.addColorStop(0,'rgba(0,0,0,.11)');protection.addColorStop(.4,'rgba(0,0,0,.22)');protection.addColorStop(.72,'rgba(0,0,0,.9)');protection.addColorStop(1,'rgba(0,0,0,.7)');
+      ctx.fillStyle=protection;ctx.fillRect(0,0,width,height);ctx.restore();
+      // Stars cover the entire section, independently of the nebula's mask.
+      ctx.save();ctx.globalCompositeOperation='screen';
+      for (const star of stars) {
+        const sx=((star.x+time*.00065*(.4+star.z)+px*.007*star.z)%1+1)%1*width;
+        const sy=((star.y+time*.0002*star.z+py*.005*star.z)%1+1)%1*height;
+        const brightness=(.27+star.z*.25+Math.sin(time*.9+star.phase)*.09)*(1+Math.sin(pulse*Math.PI)*power*.25);
+        ctx.globalAlpha=brightness;ctx.fillStyle=star.z>.8?'#f1d6b7':'#ded8eb';ctx.beginPath();ctx.arc(sx,sy,star.size,0,Math.PI*2);ctx.fill();
+        if(star.z>.97){glow(sx,sy,6,'#f6d6a4',.09);ctx.strokeStyle='rgba(241,219,196,.45)';ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(sx-3,sy);ctx.lineTo(sx+3,sy);ctx.moveTo(sx,sy-3);ctx.lineTo(sx,sy+3);ctx.stroke();}
+      }
       ctx.restore();lastPointer={x:px,y:py};lastTime=time;
     }};
   };

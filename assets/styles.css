@@ -109,3 +109,30 @@
 .nebula-visual .visual-controls button{color:#cbbba8}
 @media(max-width:800px){.nebula-visual{height:475px;width:min(560px,100%)}.nebula-label{top:9px}.nebula-response{bottom:49px}}
 @media(max-width:520px){.nebula-visual{height:395px;width:100%}.nebula-canvas{left:-5%;width:110%;height:90%}.nebula-label{font-size:7px;top:8px}.nebula-response{font-size:9px;bottom:47px}.nebula-visual .visual-controls{left:1%;right:0}.nebula-visual .visual-controls>span{font-size:7px}}
+
+/* Automatic VP movement, synchronized with the visible pause controls. */
+.identity-interactive .vp-sculpture{transform:translate3d(-50%,calc(-50% + var(--monogram-lift,0px)),55px) rotateX(calc(12deg + var(--pointer-y)*-7deg + var(--monogram-pitch,0deg))) rotateY(calc(-19deg + var(--pointer-x)*12deg + var(--monogram-turn,0deg))) rotateZ(calc(-9deg + var(--monogram-roll,0deg)));transition:none;will-change:transform}
+
+/* Immersive hero: one discreet galaxy behind the whole introduction. */
+.hero.hero-galaxy{display:block;position:relative;isolation:isolate;width:100%;margin:0;min-height:0;padding:0;overflow:hidden;background:#121214}
+.hero-galaxy .hero-inner{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:1fr auto;min-height:clamp(700px,calc(100svh - 89px),900px);padding-top:24px}
+.hero-galaxy #hero-visual{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;z-index:0;pointer-events:none;perspective:none}
+.hero-galaxy #nebula-canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;pointer-events:none}
+.hero-galaxy::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(0deg,#161513 0%,#16151300 19%,#16151300 88%,#16151335 100%)}
+.hero-galaxy .hero-content{max-width:665px;align-self:center;padding:65px 0 55px;pointer-events:auto;text-shadow:0 2px 18px #07070a90}
+.hero-galaxy .hero-intro{color:#c8c1bb;max-width:430px}
+.hero-galaxy .hero-bottom{margin:0;gap:46px;padding-block:25px 30px;border-color:#ffffff24;grid-column:1/-1}
+.hero-galaxy .hero-bottom p{color:#e0d6cc}
+.hero-galaxy .hero-bottom p>span{color:#a79b91}
+.hero-galaxy .scroll-cue{margin-left:0}
+.cosmos-kicker{position:absolute;right:0;top:48px;display:flex;align-items:center;gap:10px;font-size:8px;letter-spacing:.18em;color:#bbac9e;pointer-events:none}
+.cosmos-kicker i{width:5px;height:5px;background:#e5ae86;transform:rotate(45deg);box-shadow:0 0 12px #e5ae8640}
+.cosmos-controls{display:flex;align-items:center;gap:7px;margin-left:auto}
+.cosmos-controls button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 13px;border:1px solid #ffffff2c;border-radius:24px;background:#14131470;color:#d7c6b5;font-size:10px;white-space:nowrap;backdrop-filter:blur(8px)}
+.cosmos-controls button:hover{border-color:#e5ae8680;background:#e5ae8610}
+.cosmos-controls .cosmos-spark{width:44px;padding:0;font-size:23px}
+.cosmos-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.hero-galaxy .nebula-fallback{inset:0;transform:none;filter:blur(25px);background:radial-gradient(ellipse at 80% 35%,#a57dce25,transparent 58%),radial-gradient(ellipse at 45% 65%,#d99a6718,transparent 62%)}
+@media(max-width:1100px){.hero-galaxy .hero-bottom{gap:28px}.hero-galaxy .scroll-cue>span{display:none}.hero-galaxy .hero-content{max-width:610px}.cosmos-kicker{right:10px}}
+@media(max-width:800px){.hero-galaxy .hero-inner{min-height:calc(100svh - 74px);padding-top:15px}.hero-galaxy .hero-content{padding:70px 0 60px;max-width:580px}.cosmos-kicker{display:none}.hero-galaxy .hero-bottom{gap:24px}.hero-galaxy .hero-intro{max-width:420px}}
+@media(max-width:520px){.hero-galaxy .hero-content{padding:62px 0 46px}.hero-galaxy .hero-bottom{display:grid;grid-template-columns:1fr 1fr;gap:19px;padding-block:22px 25px}.hero-galaxy .hero-bottom p{font-size:10px}.hero-galaxy .hero-bottom p>span{font-size:7px}.hero-galaxy .scroll-cue{grid-column:1;grid-row:2;justify-self:start}.cosmos-controls{grid-column:2;grid-row:2;justify-self:end;margin-left:0}.cosmos-controls button{font-size:9px;padding-inline:11px}.cosmos-controls .cosmos-spark{padding:0;font-size:22px}.hero-galaxy .hero-intro{color:#d2c9c0}}

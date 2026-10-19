@@ -13,10 +13,22 @@
   const esc = core.escape;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let userPaused = false;
+  let motionAllowedByUser = false;
+  try {
+    const savedMotion = localStorage.getItem('portfolio:motion');
+    motionAllowedByUser = savedMotion === 'on';
+    userPaused = savedMotion === 'off';
+  } catch { /* O site também funciona sem armazenamento local. */ }
   let activeFilter = 'todos';
   let expanded = false;
   let toastTimeout;
-  const isPaused = () => userPaused || reduceMotion.matches;
+  const isPaused = () => userPaused || (reduceMotion.matches && !motionAllowedByUser);
+  function toggleMotion() {
+    if (isPaused()) { userPaused = false; motionAllowedByUser = true; }
+    else userPaused = true;
+    try { localStorage.setItem('portfolio:motion',isPaused()?'off':'on'); } catch { /* Preferência válida durante esta visita. */ }
+    document.dispatchEvent(new Event('portfolio:motionchange'));
+  }
 
   function projectMarkup(project, index) {
     const illustration = project.image.endsWith('.svg');
@@ -52,11 +64,11 @@
     const position = $('#certificate-position');
     const toggle = $('#certificate-autoplay');
     let pending = false, frame = null, lastTime = null, direction = 1;
-    let localPaused = false, hovered = false, touching = false, focused = false;
+    let localPaused = false, touching = false, focused = false;
     let visible = !('IntersectionObserver' in window), running = false;
     let offset = track.scrollLeft, cooldownUntil = 0, resumeTimer;
     const maximum = () => Math.max(0,track.scrollWidth-track.clientWidth);
-    const canRun = () => !localPaused && !isPaused() && visible && !document.hidden && !hovered && !touching && !focused && !document.querySelector('dialog[open]') && performance.now() >= cooldownUntil && maximum() > 2;
+    const canRun = () => !localPaused && !isPaused() && visible && !document.hidden && !touching && !focused && !document.querySelector('dialog[open]') && performance.now() >= cooldownUntil && maximum() > 2;
     function update() {
       pending = false;
       const rect = track.getBoundingClientRect();
@@ -79,11 +91,11 @@
       if (!canRun()) { sync(); return; }
       const delta = lastTime === null ? 0 : Math.min(50,time-lastTime);
       lastTime = time;
-      offset = Math.max(0,Math.min(maximum(),offset+direction*delta*.028));
+      offset = Math.max(0,Math.min(maximum(),offset+direction*delta*.04));
       track.scrollTo({left:offset,behavior:'instant'});
       if ((direction > 0 && offset >= maximum()) || (direction < 0 && offset <= 0)) {
         direction *= -1;
-        coolDown(1400);
+        coolDown(850);
         return;
       }
       frame = requestAnimationFrame(animate);
@@ -94,15 +106,15 @@
       running = canRun();
       offset = track.scrollLeft;
       position.setAttribute('aria-live',running?'off':'polite');
-      toggle.disabled = isPaused();
+      toggle.disabled = false;
       toggle.setAttribute('aria-pressed',String(localPaused || isPaused()));
-      toggle.setAttribute('aria-label',localPaused?'Ativar movimento automático dos certificados':'Pausar movimento automático dos certificados');
-      toggle.textContent = isPaused() ? 'Em pausa' : localPaused ? 'Reproduzir ▷' : 'Pausar Ⅱ';
+      toggle.setAttribute('aria-label',localPaused || isPaused()?'Ativar movimento automático dos certificados':'Pausar movimento automático dos certificados');
+      toggle.textContent = isPaused() ? 'Ativar ▷' : localPaused ? 'Reproduzir ▷' : 'Pausar Ⅱ';
       track.closest('.cert-carousel').classList.toggle('is-playing',running);
       if (running) frame = requestAnimationFrame(animate);
       update();
     }
-    function coolDown(milliseconds = 4500) {
+    function coolDown(milliseconds = 2800) {
       cooldownUntil = performance.now()+milliseconds;
       clearTimeout(resumeTimer);
       resumeTimer = setTimeout(sync,milliseconds+20);
@@ -117,16 +129,14 @@
     }
     previous.addEventListener('click', () => move(-1));
     next.addEventListener('click', () => move(1));
-    toggle.addEventListener('click',() => { localPaused = !localPaused; cooldownUntil = 0; sync(); });
+    toggle.addEventListener('click',() => { if(isPaused()){localPaused=false;toggleMotion();}else localPaused=!localPaused;cooldownUntil=0;sync(); });
     track.addEventListener('scroll',() => { if (!running) offset = track.scrollLeft; scheduleUpdate(); },{passive:true});
-    track.addEventListener('pointerenter',event => { if (event.pointerType !== 'touch') { hovered = true; sync(); } });
-    track.addEventListener('pointerleave',() => { hovered = false; sync(); });
     track.addEventListener('pointerdown',() => { touching = true; sync(); },{passive:true});
     window.addEventListener('pointerup',() => { if (touching) { touching = false; coolDown(); } },{passive:true});
     window.addEventListener('pointercancel',() => { if (touching) { touching = false; coolDown(); } },{passive:true});
     track.addEventListener('wheel',() => coolDown(),{passive:true});
-    track.addEventListener('focusin',() => { focused = true; sync(); });
-    track.addEventListener('focusout',() => queueMicrotask(() => { focused = track.contains(document.activeElement); sync(); }));
+    track.addEventListener('focusin',event => { focused = event.target?.matches?.(':focus-visible') ?? true; sync(); });
+    track.addEventListener('focusout',() => queueMicrotask(() => { focused = track.contains(document.activeElement) && (document.activeElement?.matches?.(':focus-visible') ?? true); sync(); }));
     track.addEventListener('keydown', event => {
       if (event.target !== track || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
       event.preventDefault();
@@ -140,7 +150,7 @@
     reduceMotion.addEventListener('change',sync);
     if ('ResizeObserver' in window) new ResizeObserver(sync).observe(track);
     else window.addEventListener('resize',sync,{passive:true});
-    if ('IntersectionObserver' in window) new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sync(); },{threshold:.1}).observe(track);
+    if ('IntersectionObserver' in window) new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sync(); },{threshold:.01}).observe(track);
     sync();
   }
   function openDialog(dialog) {
@@ -266,11 +276,13 @@
     const stage = $(stageSelector);
     const button = $(buttonSelector);
     const isNebula = stage.id === 'hero-visual';
+    const pointerArea = isNebula ? stage.closest('.hero') : stage;
+    const pointerSurface = isNebula ? pointerArea : canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) { canvas.hidden = true; button.hidden = true; return; }
     let width = 600, height = 620, frame = null, visible = true, rx = 0, ry = 0, drag = null, manualRotation = 0, lastTime = null, phase = .3;
     let faceX = 0, faceY = 0, clock = 0, reactionStart = -100, reactionPower = 0;
-    let nebulaHovered = false, responseTimer, lastGreeting = -100, reactionCount = 0;
+    let nebulaHovered = false, responseTimer, reactionCount = 0;
     const response = isNebula ? $('#nebula-response') : null;
     const nebula = isNebula && window.createNebulaRenderer ? window.createNebulaRenderer(canvas) : null;
     function react(greeting = false) {
@@ -279,13 +291,13 @@
       const messages = ['Uma ideia acende novas possibilidades.','Criatividade em expansão.','O próximo universo pode ser o nosso.'];
       response.textContent = greeting ? 'Sua curiosidade move este universo.':messages[reactionCount++%messages.length];
       clearTimeout(responseTimer);
-      responseTimer = setTimeout(() => { response.textContent = 'Mova o mouse. Acenda possibilidades.'; },4800);
+      responseTimer = setTimeout(() => { response.textContent = 'Em movimento. Antes mesmo do primeiro clique.'; },4800);
       draw();
     }
     function sizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       width = Math.max(1,rect.width); height = Math.max(1,rect.height);
-      const ratio = Math.min(window.devicePixelRatio || 1,1.7);
+      const ratio = Math.min(window.devicePixelRatio || 1,2.5);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
       ctx.setTransform(ratio,0,0,ratio,0,0); draw();
     }
@@ -305,15 +317,17 @@
       const paused = isPaused();
       const age = Math.max(0,clock-reactionStart);
       const pulse = paused ? 1 : Math.min(1,age/1.35);
-      const energy = (nebulaHovered ? .42 : .09)+(paused ? 0 : reactionPower*Math.exp(-age*2));
+      const energy = (nebulaHovered ? .56 : .22)+(paused ? 0 : .05*Math.sin(clock*.9)+reactionPower*Math.exp(-age*2));
       if (isNebula) {
         if (!paused) { faceX += (rx-faceX)*.085; faceY += (ry-faceY)*.085; }
         nebula?.draw({time:clock,pointerX:faceX,pointerY:faceY,rotation:manualRotation,energy,pulse,power:reactionPower,paused});
         stage.classList.toggle('nebula-engaged',nebulaHovered || age < 1.4);
         return;
       }
-      stage.style.setProperty('--monogram-turn', `${Math.sin(phase) * 7 + Math.sin(manualRotation) * 28}deg`);
-      stage.style.setProperty('--monogram-lift', `${Math.sin(phase * 1.3) * 5}px`);
+      stage.style.setProperty('--monogram-turn', `${Math.sin(clock*.75) * 25 + Math.sin(manualRotation) * 28}deg`);
+      stage.style.setProperty('--monogram-lift', `${Math.sin(clock*1.15) * 9}px`);
+      stage.style.setProperty('--monogram-pitch',`${Math.sin(clock*.67)*9}deg`);
+      stage.style.setProperty('--monogram-roll',`${Math.sin(clock*.55)*4}deg`);
       ctx.clearRect(0,0,width,height);
       ctx.save();ctx.translate(width*.51,height*.48);ctx.rotate(-.44);ctx.strokeStyle='rgba(222,175,130,.12)';ctx.lineWidth=.6;ctx.beginPath();ctx.ellipse(0,0,width*.42,height*.35,0,0,Math.PI*2);ctx.stroke();ctx.restore();
       const segments = 78, rings = 19;
@@ -337,7 +351,7 @@
     }
     function animate(time) {
       frame=null;
-      if (lastTime !== null) { const delta = Math.min(time-lastTime,40); phase += delta*.00009; clock += delta*.001; }
+      if (lastTime !== null) { const delta = Math.min(time-lastTime,40); phase += delta*.0003; clock += delta*.001; }
       lastTime=time;draw();
       if (!isPaused() && visible && !document.hidden) frame=requestAnimationFrame(animate);
     }
@@ -345,29 +359,28 @@
       if(frame!==null) cancelAnimationFrame(frame);frame=null;lastTime=null;
       const paused=isPaused();
       document.documentElement.classList.toggle('motion-paused',paused);
-      button.disabled=reduceMotion.matches;
+      button.disabled=false;
       button.setAttribute('aria-pressed',String(paused));
       button.setAttribute('aria-label',paused?'Ativar animações':'Pausar animações');
-      button.textContent=reduceMotion.matches?'Movimento reduzido':paused?'Ativar movimento ▷':'Pausar Ⅱ';
+      button.textContent=paused?'Ativar movimento ▷':'Pausar Ⅱ';
       if(paused){stage.style.setProperty('--pointer-x','0');stage.style.setProperty('--pointer-y','0');stage.style.setProperty('--scroll-drift','0');}
       draw();if(!paused&&visible&&!document.hidden)frame=requestAnimationFrame(animate);
     }
-    button.addEventListener('click',()=>{userPaused=!userPaused;document.dispatchEvent(new Event('portfolio:motionchange'));});
+    button.addEventListener('click',toggleMotion);
     document.addEventListener('portfolio:motionchange',updateAnimation);
     reduceMotion.addEventListener('change',updateAnimation);
     document.addEventListener('visibilitychange',updateAnimation);
     if (isNebula) {
-      stage.addEventListener('pointerenter',event => {
+      pointerArea.addEventListener('pointerenter',event => {
         if (event.pointerType === 'touch') return;
         nebulaHovered = true;
-        if (clock-lastGreeting > 5) { lastGreeting = clock; react(true); }
-        else draw();
+        draw();
       });
-      stage.addEventListener('pointerleave',() => { nebulaHovered = false; draw(); });
+      pointerArea.addEventListener('pointerleave',() => { nebulaHovered = false; draw(); });
+      $('#galaxy-react')?.addEventListener('click',()=>{rx=.35;ry=-.15;faceX=rx;faceY=ry;react();});
       canvas.addEventListener('focus',() => { nebulaHovered = true; draw(); });
       canvas.addEventListener('blur',() => { nebulaHovered = false; draw(); });
     }
-    const pointerArea = isNebula ? stage.closest('.hero') : stage;
     pointerArea.addEventListener('pointermove',event=>{
       if(event.pointerType==='touch'&&!drag)return;
       const rect=stage.getBoundingClientRect();
@@ -377,8 +390,11 @@
       if(isPaused())draw();
     },{passive:true});
     pointerArea.addEventListener('pointerleave',()=>{if(!drag){rx=0;ry=0;stage.style.setProperty('--pointer-x','0');stage.style.setProperty('--pointer-y','0');}});
-    canvas.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY,angle:manualRotation};canvas.setPointerCapture(event.pointerId);});
-    canvas.addEventListener('pointerup',event=>{if(drag && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<8)react();drag=null;});canvas.addEventListener('pointercancel',()=>{drag=null;});
+    pointerSurface.addEventListener('pointerdown',event=>{
+      if(isNebula && event.target?.closest?.('.hero-content,a,button,input,textarea,select,label'))return;
+      drag={x:event.clientX,y:event.clientY,angle:manualRotation};pointerSurface.setPointerCapture(event.pointerId);
+    });
+    pointerSurface.addEventListener('pointerup',event=>{if(drag && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<8)react();drag=null;});pointerSurface.addEventListener('pointercancel',()=>{drag=null;});
     canvas.addEventListener('keydown',event=>{
       if(isNebula && (event.key==='Enter'||event.key===' ') && !event.repeat){event.preventDefault();react();}
       if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();if(!isPaused())manualRotation+=event.key==='ArrowLeft'?-.2:.2;draw();}
