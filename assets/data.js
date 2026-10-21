@@ -109,8 +109,8 @@ window.PORTFOLIO = {
     {
       id: 'terrascore', name: 'TerraScore', subtitle: 'Um olhar para a cidade através dos dados.',
       category: 'academico', kind: 'Projeto acadêmico · Equipe', status: 'Projeto acadêmico', year: 'FIAP',
-      image: 'assets/terrascore.svg', imageAlt: 'Capa editorial do TerraScore com uma malha de indicadores urbanos', color: '#9ed8bc',
-      url: null, code: null,
+      image: 'assets/terrascore.jpg', imageAlt: 'Pagina inicial do TerraScore com indice ambiental urbano e grafico dos sete fatores', color: '#9ed8bc',
+      url: 'https://terrascore0.netlify.app/', code: null,
       tags: ['Dados', 'Interface', 'Sustentabilidade', 'Colaboração'],
       description: 'Projeto acadêmico em equipe para tornar informações sobre a cidade mais fáceis de visualizar e compreender.',
       challenge: 'Explorar como dados e indicadores podem ajudar a contar a história de um ambiente urbano.',
@@ -118,7 +118,7 @@ window.PORTFOLIO = {
       role: 'Participação no projeto acadêmico em conjunto com Artur Esteves, Diego Barbosa Rodrigues, João Fontenele e Yan de Almeida Cardoso.',
       learning: 'Começar pelo problema e pensar em como a apresentação das informações afeta a compreensão de quem utiliza a solução.',
       features: ['Indicadores urbanos', 'Visualização de informações', 'Experiência do usuário', 'Desenvolvimento em equipe'],
-      note: 'Apresentação do contexto acadêmico. A demonstração pública ainda não foi adicionada a este portfólio.'
+      note: 'Projeto academico desenvolvido em equipe na FIAP. Demonstracao publica disponivel para navegacao.'
     },
     {
       id: 'rotina', name: 'Rotina de Cutting', subtitle: 'Organização pessoal, na prática.',
